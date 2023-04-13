@@ -76,6 +76,7 @@ class PostPagesTests(TestCase):
             ): 'posts/create_post.html',
             reverse('posts:post_create'): 'posts/create_post.html',
             '/unexisting_page/': 'core/404.html',
+            reverse('posts:follow_index'): 'posts/follow.html',
         }
         for address, template in templates_url_names.items():
             with self.subTest(address=address):
@@ -85,14 +86,22 @@ class PostPagesTests(TestCase):
     def test_pages_show_correct_context(self):
         """Шаблоны index, group_list и profile
            сформирован с правильным контекстом."""
+        user = User.objects.create(username='daniil')
+        authorized_client = Client()
+        authorized_client.force_login(user)
+        Follow.objects.create(
+            user=user,
+            author=self.user
+        )
         list_of_pages = [
             reverse('posts:index'),
             reverse('posts:group_list', kwargs={'slug': self.post.group.slug}),
             reverse('posts:profile', kwargs={'username': self.user}),
+            reverse('posts:follow_index'),
         ]
         for page in list_of_pages:
             with self.subTest(page=page):
-                response = self.authorized_client.get(page)
+                response = authorized_client.get(page)
                 context = response.context['page_obj'][0]
                 self.assertEqual(context.author, self.user)
                 self.assertEqual(context.text, self.post.text)
@@ -164,7 +173,7 @@ class PostPagesTests(TestCase):
         )
         self.assertNotEqual(response_1.content, response_3.content)
 
-    def test_user_can_follow_unfollow(self):
+    def test_user_can_follow(self):
         '''Авторизованный пользователь может подписываться
            на других пользователей и удалять их из подписок.'''
         new_user = User.objects.create(username='daniil')
@@ -176,44 +185,46 @@ class PostPagesTests(TestCase):
             reverse('posts:profile_follow',
                     kwargs={'username': self.post.author})
         )
+        latest_follow = Follow.objects.latest('pk')
         self.assertEqual(Follow.objects.count(), follow_count + 1)
+        self.assertEqual(latest_follow.user, new_user)
+        self.assertEqual(latest_follow.author, self.user)
 
+    def test_user_can_unfollow(self):
+        new_user = User.objects.create(username='daniil')
+        new_authorized_client = Client()
+        new_authorized_client.force_login(new_user)
+        Follow.objects.get_or_create(
+            user=new_user,
+            author=self.user
+        )
+
+        follow_count = Follow.objects.count()
         new_authorized_client.get(
             reverse('posts:profile_unfollow',
                     kwargs={'username': self.post.author})
         )
-        self.assertEqual(Follow.objects.count(), follow_count)
+        self.assertEqual(Follow.objects.count(), follow_count - 1)
 
     def test_section_with_selected_authors(self):
-        '''Новая запись пользователя появляется в ленте тех,
-           кто на него подписан и не появляется в ленте тех,
+        '''Новая запись не появляется в ленте тех,
            кто не подписан.'''
-        user_1 = User.objects.create(username='daniil')
-        authorized_client_1 = Client()
-        authorized_client_1.force_login(user_1)
-        user_2 = User.objects.create(username='anton')
-        authorized_client_2 = Client()
-        authorized_client_2.force_login(user_2)
+        user_subscribed = User.objects.create(username='daniil')
+        authorized_client_subscribed = Client()
+        authorized_client_subscribed.force_login(user_subscribed)
+        user_not_subscribed = User.objects.create(username='anton')
+        authorized_client_not_subscribed = Client()
+        authorized_client_not_subscribed.force_login(user_not_subscribed)
 
-        authorized_client_1.get(
-            reverse('posts:profile_follow',
-                    kwargs={'username': self.post.author})
+        Follow.objects.create(
+            user=user_subscribed,
+            author=self.user
         )
-        response_1 = authorized_client_1.get(
+        response_not_subscribed = authorized_client_not_subscribed.get(
             reverse('posts:follow_index')
         )
-        context_1 = response_1.context['page_obj'][0]
-        self.assertEqual(context_1.author, self.user)
-        self.assertEqual(context_1.text, self.post.text)
-        self.assertEqual(context_1.group, self.post.group)
-        self.assertEqual(context_1.pk, self.post.pk)
-        self.assertEqual(context_1.image, self.post.image)
-
-        response_2 = authorized_client_2.get(
-            reverse('posts:follow_index')
-        )
-        context_2_count = len(response_2.context['page_obj'])
-        self.assertEqual(context_2_count, 0)
+        context_count = len(response_not_subscribed.context['page_obj'])
+        self.assertEqual(context_count, 0)
 
 
 class PaginatorViewsTest(TestCase):

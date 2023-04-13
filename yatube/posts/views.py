@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.conf import settings
 
-from .models import Post, Group, Comment, Follow, User
+from .models import Post, Group, Follow, User
 from .forms import PostForm, CommentForm
 
 
@@ -47,10 +47,11 @@ def profile(request, username):
     page_obj = paginator.get_page(page_number)
 
     follow_flag = False
-    if ((request.user.is_authenticated)
-        and Follow.objects.filter(
-            user=request.user, author=profile_user).exists()):
-        follow_flag = True
+    if (request.user.username != username):
+        if ((request.user.is_authenticated)
+            and Follow.objects.filter(
+                user=request.user, author=profile_user).exists()):
+            follow_flag = True
 
     template = 'posts/profile.html'
     context = {
@@ -65,13 +66,11 @@ def profile(request, username):
 def post_detail(request, post_id):
     post = get_object_or_404(Post, pk=post_id)
     form = CommentForm(None)
-    comments = Comment.objects.filter(post=post)
 
     template = 'posts/post_detail.html'
     context = {
         'page_obj': post,
         'form': form,
-        'comments': comments,
     }
     return render(request, template, context)
 
@@ -129,8 +128,9 @@ def add_comment(request, post_id):
 
 @login_required
 def follow_index(request):
-    post_list = Post.objects.filter(author__following__user=request.user).\
-        order_by('-pub_date')
+    post_list = Post.objects.filter(
+        author__following__user=request.user
+    ).order_by('-pub_date')
     paginator = Paginator(post_list, settings.NUMBER_OF_POST_PER_PAGE)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)

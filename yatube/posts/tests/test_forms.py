@@ -39,17 +39,18 @@ class PostFormTest(TestCase):
             group=cls.group_1
         )
 
-    def setUp(self):
-        small_gif = (
+        cls.small_gif = (
             b'\x47\x49\x46\x38\x39\x61\x01\x00'
             b'\x01\x00\x00\x00\x00\x21\xf9\x04'
             b'\x01\x0a\x00\x01\x00\x2c\x00\x00'
             b'\x00\x00\x01\x00\x01\x00\x00\x02'
             b'\x02\x4c\x01\x00\x3b'
         )
+
+    def setUp(self):
         self.uploaded = SimpleUploadedFile(
             name='small.gif',
-            content=small_gif,
+            content=self.small_gif,
             content_type='image/gif'
         )
 
@@ -93,7 +94,8 @@ class PostFormTest(TestCase):
             latest_post.group.id,
             self.group_1.id
         )
-        self.assertFalse(latest_post.image is None)
+        self.assertEqual(latest_post.image,
+                         response.context['page_obj'][0].image)
 
     def test_edit_post(self):
         '''Редактирование записи в Post.'''
@@ -106,6 +108,7 @@ class PostFormTest(TestCase):
         response = self.authorized_client.post(
             reverse('posts:post_edit', kwargs={'post_id': self.post.pk}),
             data=form_data,
+            follow=True
         )
         latest_post = Post.objects.latest('pk')
 
@@ -129,7 +132,8 @@ class PostFormTest(TestCase):
             latest_post.group.id,
             self.group_2.id
         )
-        self.assertFalse(latest_post.image is None)
+        self.assertEqual(latest_post.image,
+                         response.context['page_obj'].image)
 
     def test_add_comment(self):
         '''Валидная форма создает запись в Comment.'''

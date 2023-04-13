@@ -60,6 +60,9 @@ class PostURLTests(TestCase):
              302),
             (f'/posts/{self.post.pk}/edit/', self.authorized_client, 200),
             (f'/posts/{self.post.pk}/comment/', guest_client, 302),
+            ('/follow/', guest_client, 302),
+            ('/follow/', authorized_client_not_author, 200),
+            ('/follow/', self.authorized_client, 200),
         ]
         for address, client, status in list_of_pages_with_settings:
             with self.subTest(address=address):
@@ -75,6 +78,7 @@ class PostURLTests(TestCase):
             f'/posts/{self.post.pk}/': 'posts/post_detail.html',
             f'/posts/{self.post.pk}/edit/': 'posts/create_post.html',
             '/create/': 'posts/create_post.html',
+            '/follow/': 'posts/follow.html',
         }
         for address, template in templates_url_names.items():
             with self.subTest(address=address):
