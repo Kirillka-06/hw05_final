@@ -47,13 +47,6 @@ class PostFormTest(TestCase):
             b'\x02\x4c\x01\x00\x3b'
         )
 
-    def setUp(self):
-        self.uploaded = SimpleUploadedFile(
-            name='small.gif',
-            content=self.small_gif,
-            content_type='image/gif'
-        )
-
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
@@ -61,6 +54,11 @@ class PostFormTest(TestCase):
 
     def test_create_post(self):
         """Валидная форма создает запись в Post."""
+        self.uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=self.small_gif,
+            content_type='image/gif'
+        )
         post_count = Post.objects.count()
         form_data = {
             'text': 'test-text',
@@ -94,11 +92,17 @@ class PostFormTest(TestCase):
             latest_post.group.id,
             self.group_1.id
         )
-        self.assertEqual(latest_post.image,
-                         response.context['page_obj'][0].image)
+        image = form_data['image'].name
+        self.assertEqual(latest_post.image.name,
+                         f'posts/{image}')
 
     def test_edit_post(self):
         '''Редактирование записи в Post.'''
+        self.uploaded = SimpleUploadedFile(
+            name='very_small.gif',
+            content=self.small_gif,
+            content_type='image/gif'
+        )
         post_count = Post.objects.count()
         form_data = {
             'text': 'test-text-1',
@@ -132,8 +136,9 @@ class PostFormTest(TestCase):
             latest_post.group.id,
             self.group_2.id
         )
-        self.assertEqual(latest_post.image,
-                         response.context['page_obj'].image)
+        image = form_data['image'].name
+        self.assertEqual(latest_post.image.name,
+                         f'posts/{image}')
 
     def test_add_comment(self):
         '''Валидная форма создает запись в Comment.'''

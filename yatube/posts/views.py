@@ -47,11 +47,11 @@ def profile(request, username):
     page_obj = paginator.get_page(page_number)
 
     follow_flag = False
-    if (request.user.username != username):
-        if ((request.user.is_authenticated)
-            and Follow.objects.filter(
-                user=request.user, author=profile_user).exists()):
-            follow_flag = True
+    if ((request.user != profile_user)
+        and (request.user.is_authenticated)
+        and Follow.objects.filter(
+            user=request.user, author=profile_user).exists()):
+        follow_flag = True
 
     template = 'posts/profile.html'
     context = {
